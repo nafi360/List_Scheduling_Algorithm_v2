@@ -1,4 +1,3 @@
-# plot_results.py
 import csv
 import os
 import re
@@ -17,13 +16,16 @@ def load_results_with_meta(root="data/dags"):
         if not os.path.isfile(res_path):
             continue
 
-        # Ambil n & processors dari nama folder
-        m = re.search(r"_n(\d+)_.*_p(\d+)_", folder)
+        # Contoh nama folder:
+        # dag_0_n10_ccr0.1_p4_shape0.5
+        m = re.search(r"_n(\d+)_ccr([0-9.]+)_p(\d+)_", folder)
         if m:
             n = int(m.group(1))
-            processors = int(m.group(2))
+            ccr = float(m.group(2))
+            processors = int(m.group(3))
         else:
             n = None
+            ccr = None
             processors = None
 
         # load hasil per algoritma
@@ -41,6 +43,7 @@ def load_results_with_meta(root="data/dags"):
             runs.append({
                 "folder": folder,
                 "n": n,
+                "ccr": ccr,
                 "processors": processors,
                 "results": algo_results,
             })
@@ -74,30 +77,71 @@ def aggregate_by_param(runs, param):
     return aggregated
 
 
-def plot_metric_vs_param(aggregated, param_name, metrics_order, out_dir):
-    x_vals = sorted(aggregated.keys())
-    if not x_vals:
+def plot_metric_vs_param(
+    aggregated,
+    param_name,
+    metrics_order,
+    out_dir,
+    categorical_x=False,
+    x_labels=None,
+):
+    # kunci param (n / processors / ccr)
+    keys = sorted(aggregated.keys())
+    if not keys:
         return
 
+    # kalau mau jarak X rata: pakai index 0..len-1
+    if categorical_x:
+        x_plot = list(range(len(keys)))
+        if x_labels is None:
+            x_labels = keys
+    else:
+        x_plot = keys
+
+    # styling per algoritma
+    algo_styles = {
+        "HEFT": {"color": "red", "marker": "^"},
+        "GA": {"color": "orange", "marker": "o"},
+        # kalau nanti nambah algo lain, tambahin di sini
+    }
+
+    # kumpulin nama algoritma yang ada
+    algos = set()
+    for v in aggregated.values():
+        algos.update(v.keys())
+    algos = sorted(algos)
+
     for metric in metrics_order:
-        plt.figure()
+        plt.figure(figsize=(4.5, 3))  # ukuran mirip grafik paper
 
-        heft_y = []
-        ga_y = []
+        for algo in algos:
+            y_vals = []
+            for k in keys:
+                y_vals.append(aggregated[k].get(algo, {}).get(metric, float("nan")))
 
-        for x in x_vals:
-            algo_dict = aggregated[x]
-            heft_y.append(algo_dict.get("HEFT", {}).get(metric, float("nan")))
-            ga_y.append(algo_dict.get("GA", {}).get(metric, float("nan")))
+            style = algo_styles.get(algo, {})
+            plt.plot(
+                x_plot,
+                y_vals,
+                label=algo,
+                marker=style.get("marker", "o"),
+                color=style.get("color", None),
+                linewidth=2,
+                markersize=6,
+            )
 
-        plt.plot(x_vals, heft_y, marker="o", label="HEFT")
-        plt.plot(x_vals, ga_y, marker="o", label="GA")
-
-        plt.grid(True, linestyle="--", alpha=0.5)
-        plt.xlabel(param_name)
+        plt.grid(True, linestyle="--", alpha=0.4)
         plt.ylabel(metric)
         plt.title(f"{metric} vs {param_name}")
-        plt.legend()
+
+        # handle label X
+        if categorical_x:
+            plt.xticks(x_plot, x_labels)
+        else:
+            plt.xticks(x_plot, keys)
+        plt.xlabel(param_name)
+
+        plt.legend(frameon=False)
         plt.tight_layout()
 
         os.makedirs(out_dir, exist_ok=True)
@@ -106,7 +150,7 @@ def plot_metric_vs_param(aggregated, param_name, metrics_order, out_dir):
         fpath = os.path.join(out_dir, fname)
 
         plt.savefig(fpath, dpi=300)
-        plt.close()   # FIX WAJIB
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -117,13 +161,42 @@ if __name__ == "__main__":
         out_dir = "results_preview"
         os.makedirs(out_dir, exist_ok=True)
 
+        # ambil urutan metrik dari satu sample
         sample_metrics = next(iter(runs[0]["results"].values()))
         metrics_order = list(sample_metrics.keys())
 
+        # n (jumlah tugas) → pakai X numeric biasa
         agg_n = aggregate_by_param(runs, "n")
-        plot_metric_vs_param(agg_n, "n", metrics_order, out_dir)
+        plot_metric_vs_param(
+            agg_n,
+            "n",
+            metrics_order,
+            out_dir,
+            categorical_x=False,
+        )
 
+        # processors → juga numeric biasa
         agg_p = aggregate_by_param(runs, "processors")
-        plot_metric_vs_param(agg_p, "processors", metrics_order, out_dir)
+        plot_metric_vs_param(
+            agg_p,
+            "processors",
+            metrics_order,
+            out_dir,
+            categorical_x=False,
+        )
+
+        # CCR → X diratakan (kategori), label tetap nilai CCR
+        agg_ccr = aggregate_by_param(runs, "ccr")
+        ccr_keys = sorted(agg_ccr.keys())
+        ccr_labels = [("{:.2g}".format(v)).rstrip("0").rstrip(".") for v in ccr_keys]
+
+        plot_metric_vs_param(
+            agg_ccr,
+            "CCR",
+            metrics_order,
+            out_dir,
+            categorical_x=True,
+            x_labels=ccr_labels,
+        )
 
         print(f"Gambar disimpan ke folder: {out_dir}")
