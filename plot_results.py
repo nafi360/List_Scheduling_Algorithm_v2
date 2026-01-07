@@ -100,8 +100,8 @@ def plot_metric_vs_param(
 
     # styling per algoritma
     algo_styles = {
-        "HEFT": {"color": "red", "marker": "^"},
-        "GA": {"color": "orange", "marker": "o"},
+        "HEFT": {"color": "blue", "marker": "^"},
+        "GA": {"color": "red", "marker": "o"},
         # kalau nanti nambah algo lain, tambahin di sini
     }
 
@@ -112,7 +112,7 @@ def plot_metric_vs_param(
     algos = sorted(algos)
 
     for metric in metrics_order:
-        plt.figure(figsize=(4.5, 3))  # ukuran mirip grafik paper
+        plt.figure(figsize=(6, 4))  # ukuran mirip grafik paper
 
         for algo in algos:
             y_vals = []
@@ -126,7 +126,7 @@ def plot_metric_vs_param(
                 label=algo,
                 marker=style.get("marker", "o"),
                 color=style.get("color", None),
-                linewidth=2,
+                linewidth=1.5,
                 markersize=6,
             )
 
@@ -151,6 +151,24 @@ def plot_metric_vs_param(
 
         plt.savefig(fpath, dpi=300)
         plt.close()
+
+
+def append_aggregated_to_csv(aggregated, param_name, out_path, write_header=False):
+    """
+    Gabungin semua rata-rata ke 1 CSV.
+    Format:
+    comparison,param_value,algorithm,metric,mean
+    """
+    mode = "w" if write_header else "a"
+    with open(out_path, mode, newline="") as f:
+        writer = csv.writer(f)
+        if write_header:
+            writer.writerow(["comparison", "param_value", "algorithm", "metric", "mean"])
+
+        for param_value in sorted(aggregated.keys()):
+            for algo, metrics in aggregated[param_value].items():
+                for metric, mean_val in metrics.items():
+                    writer.writerow([param_name, param_value, algo, metric, mean_val])
 
 
 if __name__ == "__main__":
@@ -199,4 +217,11 @@ if __name__ == "__main__":
             x_labels=ccr_labels,
         )
 
+        # ====== EXPORT CSV RATA-RATA (GABUNGAN) ======
+        csv_path = os.path.join(out_dir, "averages_all_comparisons.csv")
+        append_aggregated_to_csv(agg_n, "n", csv_path, write_header=True)
+        append_aggregated_to_csv(agg_p, "processors", csv_path, write_header=False)
+        append_aggregated_to_csv(agg_ccr, "CCR", csv_path, write_header=False)
+
         print(f"Gambar disimpan ke folder: {out_dir}")
+        print(f"CSV rata-rata disimpan ke: {csv_path}")
