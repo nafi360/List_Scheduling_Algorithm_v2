@@ -43,3 +43,16 @@ Jalankan perintah berikut secara berurutan untuk memproses simulasi:
 Langkah pertama adalah membuat *Directed Acyclic Graph* (DAG) menggunakan generator.
 ```bash
 python dag_generator.py
+```
+
+#### B. Eksperimen Algoritma dan Matriks Evaluasi
+Jalankan program utama untuk melakukan simulasi algoritma dan mendapatkan hasil evaluasi.
+```bash
+python main.py
+```
+
+#### C. Pembuatan Grafik
+Gunakan skrip ini untuk memvisualisasikan data hasil eksperimen ke dalam bentuk grafik.
+```bash
+python plot_results.py
+```
