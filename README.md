@@ -1,4 +1,4 @@
-# Simulasi Algoritma dan Evaluasi
+# Simulasi Algoritma Penjadwalan Tugas HEFT dan GA
 
 Dokumentasi ini menjelaskan langkah-langkah untuk menyiapkan lingkungan kerja dan menjalankan program simulasi eksperimen algoritma hingga pembuatan grafik hasil.
 
